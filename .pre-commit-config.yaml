@@ -1,0 +1,138 @@
+# See https://pre-commit.com for more information about pre-commit.
+# See https://pre-commit.com/hooks.html for more available hooks.
+#
+##############################################################################
+#
+# Using pre-commit hooks
+#
+# To improve quality of your commit, it's recommended to use "pre-commit" (http://pre-commit.com)
+# hooks, that will block your commits unless all tests pass. To benefit from this, you need to wire
+# hooks into Git pipeline by invoking `pre-commit install` command in project source code root
+# directory.
+#
+# ---------------------------------------------------------------------------
+# Installation
+# ---------------------------------------------------------------------------
+# * Install pipx package manager: https://pipx.pypa.io/
+# * Install `pre-commit` as standalone application: `pipx install pre-commit`
+# * Go to project source code root directory
+# * Plug hooks into Git pipeline:    `pre-commit install`
+# * Uninstall hooks:                 `pre-commit uninstall`
+#
+# See `pre-commit` official installation docs too: https://pre-commit.com/#install
+#
+# ---------------------------------------------------------------------------
+# Common usage
+# ---------------------------------------------------------------------------
+# * Run all hooks against staged files (what `git commit` does automatically):
+#       pre-commit run
+#
+# * Run all hooks against the entire repository (useful after adding a new hook
+#   or before opening a PR):
+#       pre-commit run --all-files
+#
+# * Run a single hook on staged files (id taken from the `id:` fields below,
+#   e.g. `php-cs-fixer`, `phpstan`, `trailing-whitespace`, `shellcheck`):
+#       pre-commit run <hook-id>
+#
+# * Run a single hook on specific file(s), regardless of git staging:
+#       pre-commit run <hook-id> --files src/Foo/Bar.php src/Foo/Baz.php
+#
+# * Run a single hook on every file in the repo:
+#       pre-commit run <hook-id> --all-files
+#
+# ---------------------------------------------------------------------------
+# Skipping / disabling hooks
+# ---------------------------------------------------------------------------
+# * Skip ONE hook for a single commit (run the rest normally), preferred over
+#   `--no-verify` because the other checks still run:
+#       SKIP=phpstan git commit -m "..."
+#       SKIP=phpstan,php-cs-fixer git commit -m "..."
+#
+# * Bypass ALL hooks for a single commit (use sparingly, e.g. WIP commits):
+#       git commit --no-verify -m "..."
+#
+# ---------------------------------------------------------------------------
+# Maintenance
+# ---------------------------------------------------------------------------
+# * Update pinned hook revisions to their latest tags:
+#       pre-commit autoupdate
+#
+# * See how pre-commit identifies a given file (useful when tuning `types`,
+#   `types_or` or `exclude_types` filters):
+#       identify-cli <FILE>
+#
+# The PHP hooks run in the `app` service of this repository's Compose stack, so it has to be
+# running: `docker compose up -d --wait`. See docs/php-cs-fixer.md and docs/runtime.md.
+#
+
+repos:
+  - repo: local
+    hooks:
+      # See docs/php-cs-fixer.md for more details about this hook. Same script as
+      # `composer docker:cs:changed:fix`, but on the staged files only. `-s` stages
+      # the fixes again, so they go into the commit.
+      - id: php-cs-fixer
+        name: PHP CS Fixer Code Formatter
+        entry: bin/php-cs-fixer-changed
+        args: [ '--stage' ]
+        language: script
+        files: \.php$
+        pass_filenames: true
+        require_serial: true
+
+      - id: phpstan
+        name: PHPStan Code Linter
+        entry: bin/phpstan-precommit
+        language: script
+        files: \.php$
+        pass_filenames: true
+        require_serial: true
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Prevent giant files from being committed
+      - id: check-added-large-files
+        args: [ '--maxkb=1555550' ]
+      # Check for files that would conflict in case-insensitive filesystems
+      - id: check-case-conflict
+      # Check for files that contain merge conflict strings
+      - id: check-merge-conflict
+      # Ensures that (non-binary) executables have a shebang.
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      # Prevent addition of new git submodules
+      - id: forbid-new-submodules
+      # Replaces or checks mixed line ending
+      - id: mixed-line-ending
+        args: [ '--fix=no' ]
+      - id: trailing-whitespace
+      - id: check-json
+      - id: check-yaml
+      - id: check-toml
+      # 4 spaces, matching composer.json, the repository's own JSON style (this project has no
+      # .editorconfig). --no-ensure-ascii keeps non-ASCII text (Polish letters) as it is,
+      # instead of turning it into \uXXXX escapes.
+      # `exclude`: JSON files that other tools write in their own style (npm lockfiles with
+      # 2 spaces). The hook would re-indent them, and the next npm run would write them back.
+      # check-json still checks that they are valid.
+      - id: pretty-format-json
+        args: [ '--autofix', '--no-sort-keys', '--indent=4', '--no-ensure-ascii' ]
+        exclude: ^(package-lock\.json|frontend/.*)$
+
+  - repo: https://github.com/jumanjihouse/pre-commit-hooks
+    rev: 3.0.0
+    hooks:
+      # Non-executable shell script filename ends in .sh
+      - id: script-must-have-extension
+      # ShellCheck - shell script linter
+      - id: shellcheck
+        args: [ '--exclude=SC2148' ]
+
+  - repo: https://github.com/MarcinOrlowski/pre-commit-hooks
+    rev: 1.8.0
+    hooks:
+      - id: commit-msg
+      - id: no-ai-slop
+

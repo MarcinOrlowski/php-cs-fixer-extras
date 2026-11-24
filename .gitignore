@@ -1,51 +1,18 @@
 /vendor/
+
+# A library pins nothing for its consumers, so the lock file is not tracked.
 /composer.lock
 
-###> symfony/framework-bundle ###
-/.idea
-/.env.local
-.env.local
-/.env.local.php
-/.env.*.local
-.env.*.local
-/config/secrets/prod/prod.decrypt.private.php
-/config/reference.php
-/public/bundles/
-/var/
-###< symfony/framework-bundle ###
-
-###> phpunit/phpunit ###
-/phpunit.xml
-.phpunit.result.cache
-###< phpunit/phpunit ###
-
-###> symfony/phpunit-bridge ###
-.phpunit.result.cache
-/phpunit.xml
-.phpunit.cache
-###< symfony/phpunit-bridge ###
-
-###> symfony/asset-mapper ###
-/public/assets/
-/assets/vendor/
-###< symfony/asset-mapper ###
-
-###> php-cs-fixer ###
-/tools/php-cs-fixer/vendor
-.php-cs-fixer.cache
-###< php-cs-fixer ###
-
-# Playwright
-node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+# Per-developer IDE state.
+/.idea/
 
 ###> friendsofphp/php-cs-fixer ###
 /.php-cs-fixer.php
 /.php-cs-fixer.cache
 ###< friendsofphp/php-cs-fixer ###
 
-/.pre-commit-config.yaml
-/.pre-commit/
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+.phpunit.result.cache
+###< phpunit/phpunit ###
