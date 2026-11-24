@@ -2,7 +2,7 @@
     "name": "marcin-orlowski/php-cs-fixer-extras",
     "description": "Extra fixers for PHP CS Fixer.",
     "type": "library",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "keywords": [
         "php-cs-fixer",
         "fixer",
