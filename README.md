@@ -9,35 +9,13 @@ for rules it does not ship.
 composer require --dev marcin-orlowski/php-cs-fixer-extras
 ```
 
-Requires PHP 8.3+ and PHP CS Fixer 3.95+.
-
-## Use
-
-Register the fixers, then turn on the ones you want by name:
-
-```php
-<?php
-
-// .php-cs-fixer.dist.php
-
-return new PhpCsFixer\Config()
-    ->registerCustomFixers([
-        new PCFE\AttributeArgumentsPerLineFixer(),
-    ])
-    ->setRules([
-        '@Symfony' => true,
-        PCFE\AttributeArgumentsPerLineFixer::NAME => true,
-    ])
-    ->setFinder($finder);
-```
-
-A custom fixer must be **registered and enabled**. Registering it alone does nothing.
+Requires PHP 8.3+
 
 ## Fixers
 
-| Rule | What it does |
-| ---- | ------------ |
-| [`PCFE/attribute_arguments_per_line`](docs/attribute-arguments-per-line.md) | An attribute with two or more arguments gets one argument per line and a trailing comma. |
+* [AttributeArgumentsPerLineFixer](docs/attribute-arguments-per-line.md)
+
+  An attribute with two or more arguments gets one argument per line and a trailing comma.
 
 ## Develop
 
