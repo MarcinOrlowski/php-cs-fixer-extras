@@ -1,0 +1,36 @@
+# Editor settings that match the project's formatting rules: PHP CS Fixer (.php-cs-fixer.dist.php)
+# for PHP, and the pre-commit hooks (trailing-whitespace, pretty-format-json) for all files.
+# Editors apply them to the text you type; they do not reformat existing files.
+# See https://editorconfig.org
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+# shfmt reads this file too: `shfmt -w <file>` formats shell scripts by these rules. This is its
+# `-ci` option (indent `case` branches). Other editors ignore the key.
+switch_case_indent = true
+
+# A guide only: PHP CS Fixer does not wrap long lines, so nothing enforces this limit.
+[*.php]
+max_line_length = 100
+
+# Docker Compose files, the Azure pipeline and this one Symfony config are written with 2 spaces.
+[{compose.yaml,compose.override.yaml,.azure/*.yml,config/packages/api_platform.yaml}]
+indent_size = 2
+
+# Nested Markdown list items are indented by 2 spaces.
+[*.md]
+indent_size = 2
+
+# The Playwright tests are written with tabs.
+[playwright-tests/**.js]
+indent_style = tab
+
+# PHPStan writes its baseline with tabs (--generate-baseline).
+[.phpstan-baseline.neon]
+indent_style = tab
