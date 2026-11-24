@@ -16,3 +16,6 @@
 /.phpunit.cache/
 .phpunit.result.cache
 ###< phpunit/phpunit ###
+
+# PHPStan scratch space.
+/var/

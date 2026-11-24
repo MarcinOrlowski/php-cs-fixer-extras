@@ -13,6 +13,7 @@ final class AttributeArgumentsPerLineFixerTest extends TestCase
 {
     private AttributeArgumentsPerLineFixer $fixer;
 
+    #[\Override]
     protected function setUp(): void
     {
         $this->fixer = new AttributeArgumentsPerLineFixer();

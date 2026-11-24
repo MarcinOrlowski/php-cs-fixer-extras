@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#
+# Runs PHPStan on changed PHP files only: the staged, unstaged and untracked ones.
+#
+# This is a speed aid while working, not a replacement for the full run. PHPStan sees less context
+# in a subset of files, so `composer stan` over the whole package stays the check that has to pass.
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly PROJECT_DIR
+readonly PHPSTAN="${PROJECT_DIR}/vendor/bin/phpstan"
+
+main() {
+  cd "${PROJECT_DIR}"
+
+  local files=()
+  local file
+  while IFS= read -r -d '' file; do
+    if [[ "${file}" == *.php ]]; then
+      files+=("${file}")
+    fi
+  done < <({
+    git diff -z --cached --name-only --diff-filter=ACMR
+    git diff -z --name-only --diff-filter=ACMR
+    git ls-files -z --others --exclude-standard
+  } | sort -zu)
+
+  if [ "${#files[@]}" -eq 0 ]; then
+    printf '%s\n' "No changed PHP files to analyse."
+    exit 0
+  fi
+  if [ ! -f "${PHPSTAN}" ]; then
+    printf '%s\n' "ERROR: ${PHPSTAN} is missing. Run 'composer install' first." >&2
+    exit 1
+  fi
+
+  php "${PHPSTAN}" analyse --no-progress --memory-limit=1G -- "${files[@]}"
+}
+
+main "$@"

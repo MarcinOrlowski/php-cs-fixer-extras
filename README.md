@@ -44,6 +44,7 @@ A custom fixer must be **registered and enabled**. Registering it alone does not
 ```bash
 composer install
 composer test        # PHPUnit
+composer stan        # PHPStan, level 8
 composer cs-check    # this package's own style, dry run
 composer cs-fix
 ```

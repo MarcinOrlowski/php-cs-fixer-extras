@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook for PHPStan: analyses the PHP files that pre-commit passes.
+#
+# This package ships no container, so PHPStan runs with the local `php` and the
+# vendor/bin/phpstan installed by `composer install`.
+
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+readonly PROJECT_DIR
+readonly PHPSTAN="${PROJECT_DIR}/vendor/bin/phpstan"
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    exit 0
+  fi
+  if [ ! -f "${PHPSTAN}" ]; then
+    printf '%s\n' "ERROR: ${PHPSTAN} is missing. Run 'composer install' first." >&2
+    exit 1
+  fi
+
+  (cd "${PROJECT_DIR}" && php "${PHPSTAN}" analyse --no-progress --memory-limit=1G -- "$@")
+}
+
+main "$@"
