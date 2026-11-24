@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook for PHP CS Fixer: fixes the staged PHP files that pre-commit passes, and stages
+# them again, so the fixes go into the commit. Kept for local pre-commit configs that call it; the
+# current hook config calls `bin/php-cs-fixer-changed -s`, which does the same. The fixer runs
+# through the shared base, bin/lib/php-cs-fixer-common.sh.
+
+set -euo pipefail
+
+# shellcheck source=lib/php-cs-fixer-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/php-cs-fixer-common.sh"
+
+main() {
+  if [ "$#" -eq 0 ]; then
+    exit 0
+  fi
+
+  local files=()
+  local file resolved
+  for file in "$@"; do
+    resolved="$(to_project_path "${file}")" || exit 2
+    files+=("${resolved}")
+  done
+
+  run_fix 0 "${files[@]}"
+  git -C "${PROJECT_DIR}" add -- "${files[@]}"
+}
+
+main "$@"

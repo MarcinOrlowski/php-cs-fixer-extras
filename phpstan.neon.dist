@@ -1,0 +1,10 @@
+parameters:
+    level: 8
+    # A method that implements an interface method or overrides a parent one must carry
+    # #[\Override]. PHP checks the attribute at class load, so it also fails fast when a signature
+    # stops matching its parent.
+    checkMissingOverrideMethodAttribute: true
+    paths:
+        - src
+        - tests
+    tmpDir: var/phpstan

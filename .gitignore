@@ -1,0 +1,21 @@
+/vendor/
+
+# A library pins nothing for its consumers, so the lock file is not tracked.
+/composer.lock
+
+# Per-developer IDE state.
+/.idea/
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###< friendsofphp/php-cs-fixer ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+.phpunit.result.cache
+###< phpunit/phpunit ###
+
+# PHPStan scratch space.
+/var/

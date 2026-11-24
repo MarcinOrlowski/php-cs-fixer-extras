@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+#
+# Runs PHP CS Fixer on changed PHP files only. See docs/php-cs-fixer.md.
+#
+# With no FILE arguments it takes the staged, unstaged and untracked PHP files from git.
+# With FILE arguments it takes these files only. The fixer runs through the shared base,
+# bin/lib/php-cs-fixer-common.sh.
+
+set -euo pipefail
+
+# shellcheck source=lib/php-cs-fixer-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/php-cs-fixer-common.sh"
+
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly SCRIPT_NAME
+
+show_usage() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} [-c] [-s] [-h] [FILE...]
+  FILE         File to format, relative to the current folder. Without a FILE it takes the
+               staged, unstaged and untracked PHP files from git.
+  -c, --check  Check only: show the needed fixes as a diff, do not change files
+  -s, --stage  Stage the fixed files again, so the fixes go into the commit
+  -h, --help   Show this help
+EOF
+}
+
+# Prints the changed PHP files, NUL separated and relative to the project root. Deleted files are
+# left out.
+collect_changed_files() {
+  {
+    git -C "${PROJECT_DIR}" diff -z --cached --name-only --diff-filter=ACMR
+    git -C "${PROJECT_DIR}" diff -z --name-only --diff-filter=ACMR
+    git -C "${PROJECT_DIR}" ls-files -z --others --exclude-standard
+  } | sort -zu
+}
+
+main() {
+  local check_only=0
+  local stage=0
+  # Options and files can come in any order; `--` ends the options.
+  local args=()
+  while [ "$#" -gt 0 ]; do
+    case "${1}" in
+      -c | --check) check_only=1 ;;
+      -s | --stage) stage=1 ;;
+      -h | --help)
+        show_usage
+        exit 0
+        ;;
+      --)
+        shift
+        args+=("$@")
+        break
+        ;;
+      -*)
+        printf '%s\n' "ERROR: Unknown option: ${1}" >&2
+        show_usage >&2
+        exit 2
+        ;;
+      *) args+=("${1}") ;;
+    esac
+    shift
+  done
+  readonly check_only stage
+
+  local files=()
+  local file resolved
+  if [ "${#args[@]}" -gt 0 ]; then
+    for file in "${args[@]}"; do
+      resolved="$(to_project_path "${file}")" || exit 2
+      files+=("${resolved}")
+    done
+  else
+    while IFS= read -r -d '' file; do
+      if [[ "${file}" == *.php ]]; then
+        files+=("${file}")
+      fi
+    done < <(collect_changed_files)
+  fi
+
+  if [ "${#files[@]}" -eq 0 ]; then
+    printf '%s\n' "No changed PHP files to fix."
+    exit 0
+  fi
+
+  run_fix "${check_only}" "${files[@]}"
+
+  if [ "${stage}" -eq 1 ] && [ "${check_only}" -eq 0 ]; then
+    git -C "${PROJECT_DIR}" add -- "${files[@]}"
+  fi
+}
+
+main "$@"

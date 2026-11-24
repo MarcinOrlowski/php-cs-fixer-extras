@@ -1,0 +1,214 @@
+#!/usr/bin/env bash
+#
+# Runs PHP CS Fixer on the whole project, or on the given files and folders.
+# See docs/php-cs-fixer.md.
+#
+# The fixer runs through the shared base, bin/lib/php-cs-fixer-common.sh: the project's own fixer,
+# with the local `php` of this checkout.
+#
+# Fixing the whole project refuses to run when the working tree has uncommitted changes (staged,
+# unstaged or untracked files): the fixer changes files in place, and only on a clean tree can its
+# run be reviewed with `git diff` and undone with `git checkout -- .`. After the run, the script
+# prints the exact commands to review, undo or commit the formatting. Fixing given paths skips the
+# check: it changes only the files the caller named. `--force` skips it for the whole project too.
+
+set -euo pipefail
+
+# shellcheck source=lib/php-cs-fixer-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib/php-cs-fixer-common.sh"
+
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly SCRIPT_NAME
+
+readonly FIX_COMMAND='composer docker:cs:all:fix'
+# Composer drops options it does not know, unless they come after `--`.
+readonly FORCE_COMMAND="${FIX_COMMAND} -- --force"
+readonly COMMIT_MESSAGE='Reformatted code with PHP CS Fixer'
+# How many of the uncommitted changes to list in the error message.
+readonly MAX_LISTED=10
+
+show_usage() {
+  cat <<EOF
+Usage: ${SCRIPT_NAME} [-c] [-f] [-h] [PATH...]
+  PATH         File or folder to format, relative to the current folder. Without a PATH (or
+               with '.') the whole project is formatted, and that needs a clean git working tree.
+  -c, --check  Check only: show the needed fixes as a diff, do not change files
+  -f, --force  Format the whole project even when the working tree has uncommitted changes.
+               The formatting then mixes with those changes and cannot be undone on its own.
+  -h, --help   Show this help
+EOF
+}
+
+# Explains why the fixer does not run and what to do. Takes the `git status --porcelain` output.
+print_unclean_tree_error() {
+  local changes="${1}"
+  local count
+  count=$(($(printf '%s\n' "${changes}" | wc -l)))
+
+  printf 'ERROR: %s needs a clean git working tree, but it has %d uncommitted change(s):\n\n' \
+    "${FIX_COMMAND}" "${count}"
+  printf '%s\n' "${changes}" | head -n "${MAX_LISTED}" | sed 's/^/    /'
+  if [ "${count}" -gt "${MAX_LISTED}" ]; then
+    printf '    ... and %d more (see: git status)\n' "$((count - MAX_LISTED))"
+  fi
+  cat <<EOF
+
+    (First letter: staged change, second letter: change not staged.
+     M = modified, A = added, D = deleted, R = renamed, ?? = untracked file.)
+
+Why: the fixer changes files in place. On a clean tree, 'git diff' shows only its changes and
+'git checkout -- .' undoes them. With your own changes in the tree, both mix in the same files,
+and there is no way to undo only the formatting.
+
+What to do - run these commands in the project root, either:
+
+  a) Commit your changes first:
+
+       git add --all
+       git commit -m "<describe your changes>"
+       ${FIX_COMMAND}
+
+  b) Or put your changes aside, format and commit the formatting, then bring them back:
+
+       git stash push --include-untracked -m "Before ${FIX_COMMAND}"
+       ${FIX_COMMAND}
+       git commit --all -m "${COMMIT_MESSAGE}"
+       git stash pop
+
+     If 'git stash pop' reports conflicts, the fixer changed the same lines as you did. Fix
+     the conflicts, then remove the kept stash with: git stash drop
+
+  c) Or format anyway. The formatting then mixes with your changes, and you cannot undo it on
+     its own ('git checkout -- .' would also remove your changes):
+
+       ${FORCE_COMMAND}
+EOF
+}
+
+# Tells what the fixer run changed, and how to review, undo or commit it.
+print_summary() {
+  local changed="${1}"
+  if [ "${changed}" -eq 0 ]; then
+    printf '\nNothing changed: the code already matches the formatting rules.\n'
+    return
+  fi
+  cat <<EOF
+
+PHP CS Fixer changed ${changed} file(s). The working tree was clean before the run, so these
+are only its changes. Run these commands in the project root:
+
+  Review the formatting:
+
+       git diff --stat
+       git diff
+
+  Undo the formatting:
+
+       git checkout -- .
+
+  Or keep it, as a formatting-only commit:
+
+       git commit --all -m "${COMMIT_MESSAGE}"
+EOF
+}
+
+# Tells what to do after a forced run on a working tree that had uncommitted changes.
+print_forced_summary() {
+  cat <<EOF
+
+WARNING: The working tree had uncommitted changes before this run (--force), so the formatting
+is now mixed with them. Do not undo it with 'git checkout -- .': that also removes your own
+changes. The fixer output above lists the files it changed. Review the changes with:
+
+       git diff
+EOF
+}
+
+main() {
+  local check_only=0
+  local force=0
+  # Options and paths can come in any order (getopts cannot read long options); `--` ends the
+  # options.
+  local args=()
+  while [ "$#" -gt 0 ]; do
+    case "${1}" in
+      -c | --check) check_only=1 ;;
+      -f | --force) force=1 ;;
+      -h | --help)
+        show_usage
+        exit 0
+        ;;
+      --)
+        shift
+        args+=("$@")
+        break
+        ;;
+      -*)
+        printf '%s\n' "ERROR: Unknown option: ${1}" >&2
+        show_usage >&2
+        exit 2
+        ;;
+      *) args+=("${1}") ;;
+    esac
+    shift
+  done
+  readonly check_only force
+
+  # Resolve the paths from the caller's folder, before moving to the project root. The project
+  # root itself means the whole project, so it does not skip the clean tree check.
+  local paths=()
+  local whole_project=0
+  local path resolved
+  if [ "${#args[@]}" -gt 0 ]; then
+    for path in "${args[@]}"; do
+      resolved="$(to_project_path "${path}")" || exit 2
+      if [ "${resolved}" = '.' ]; then
+        whole_project=1
+      else
+        paths+=("${resolved}")
+      fi
+    done
+  fi
+  if [ "${whole_project}" -eq 1 ]; then
+    paths=()
+  fi
+
+  # git and the fixer both work from the project root.
+  cd "${PROJECT_DIR}"
+
+  local was_dirty=0
+  if [ "${check_only}" -eq 0 ] && [ "${#paths[@]}" -eq 0 ]; then
+    local changes
+    changes="$(git status --porcelain)"
+    if [ -n "${changes}" ]; then
+      if [ "${force}" -eq 0 ]; then
+        print_unclean_tree_error "${changes}" >&2
+        exit 1
+      fi
+      was_dirty=1
+    fi
+  fi
+
+  if [ "${#paths[@]}" -gt 0 ]; then
+    run_fix "${check_only}" "${paths[@]}"
+    exit
+  fi
+  if [ "${check_only}" -eq 1 ]; then
+    run_fix 1
+    exit
+  fi
+
+  local status=0
+  run_fix 0 || status=$?
+  if [ "${status}" -ne 0 ]; then
+    printf '\nERROR: PHP CS Fixer failed with exit code %d.\n' "${status}" >&2
+  fi
+  if [ "${was_dirty}" -eq 1 ]; then
+    print_forced_summary
+  else
+    print_summary "$(($(git status --porcelain | wc -l)))"
+  fi
+  exit "${status}"
+}
+
+main "$@"
